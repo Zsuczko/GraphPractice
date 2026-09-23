@@ -65,67 +65,14 @@ function compileExpression(
   }
 }
 
-// const App = () => {
-//   const [selectedCoords, setSelectedCoords] = useState<CoordType[]>([]);
-
-//   useEffect(() => {
-//     const board = JXG.JSXGraph.initBoard("jxgbox", {
-//       boundingbox: [-10, 10, 10, -10],
-//       axis: true,
-//     });
-
-//     board.on("down", (event: PointerEvent) => {
-//       const target = board.getAllObjectsUnderMouse(event)[0] as
-//         | JXG.GeometryElement
-//         | undefined;
-//       if (target && target.elType === "point") {
-//         const id = target.id;
-//         board.removeObject(target);
-//         setSelectedCoords((prev) => prev.filter((c) => c.id !== id));
-//         return;
-//       }
-
-//       const [x, y] = board.getUsrCoordsOfMouse(event);
-//       const rounded = {
-//         x: Math.round(x * 100) / 100,
-//         y: Math.round(y * 100) / 100,
-//       };
-
-//       const point = board.create("point", [rounded.x, rounded.y], {
-//         size: 3,
-//         name: "",
-//       });
-
-//       setSelectedCoords((prev) => [...prev, { id: point.id, ...rounded }]);
-//     });
-
-//     return () => JXG.JSXGraph.freeBoard(board);
-//   }, []);
-//   return (
-//     <main className="flex justify-center p-5 gap-10">
-//       <div
-//         id="jxgbox"
-//         className="jxgbox"
-//         style={{ width: "600px", height: "600px" }}
-//       />
-
-//       <div className="w-20">
-//         {selectedCoords.map((item) => (
-//           <div>
-//             {item.x},{item.y}
-//           </div>
-//         ))}
-//       </div>
-//     </main>
-//   );
-// };
-
 const App = () => {
   const boardRef = useRef<JXG.Board | null>(null);
   const curveRef = useRef<JXG.Curve | null>(null);
   const [expr, setExpr] = useState("3x + 1");
   const [error, setError] = useState<string | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<CoordType[]>([]);
+
+  const [equ, setEqu] = useState("");
 
   useEffect(() => {
     const board = JXG.JSXGraph.initBoard("jxgbox", {
@@ -163,24 +110,42 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedCoords.length === 2) {
-      const x1 = selectedCoords[0].x;
-      const y1 = selectedCoords[0].y;
-      const x2 = selectedCoords[1].x;
-      const y2 = selectedCoords[1].y;
-
-      let m = (y1 - y2) / (x1 - x2);
-
-      let b = y1 - x1 * m;
-
-      console.log(`f(x)=${m}x+${b}`);
-      plot(`${m}x+${b}`);
-    } else {
+    if (selectedCoords.length < 2) {
       const board = boardRef.current;
       if (!board) return;
       if (curveRef.current) {
         board.removeObject(curveRef.current);
       }
+      return;
+    }
+    // if (selectedCoords.length === 2) {
+    //   // const x1 = selectedCoords[0].x;
+    //   // const y1 = selectedCoords[0].y;
+    //   // const x2 = selectedCoords[1].x;
+    //   // const y2 = selectedCoords[1].y;
+    //   // let m = (y1 - y2) / (x1 - x2);
+    //   // let b = y1 - x1 * m;
+    //   // console.log(`f(x)=${m}x+${b}`);
+    //   // plot(`${m}x+${b}`);
+    // }
+    else {
+      let equation = "";
+      for (let i = 0; i < selectedCoords.length; i++) {
+        let szamlalo = "";
+        let nevezo = 1;
+        for (let l = 0; l < selectedCoords.length; l++) {
+          if (i !== l) {
+            szamlalo += `(x-(${selectedCoords[l].x}))`;
+            nevezo *= selectedCoords[i].x - selectedCoords[l].x;
+          }
+        }
+        console.log(`(${szamlalo})/(${nevezo})*${selectedCoords[i].y}+`);
+
+        equation += `${szamlalo}/${nevezo}*${selectedCoords[i].y}${i !== selectedCoords.length - 1 ? "+" : ""}`;
+      }
+      console.log(equation);
+      plot(equation);
+      setEqu(equation);
     }
   }, [selectedCoords]);
 
@@ -200,7 +165,7 @@ const App = () => {
       board.removeObject(curveRef.current);
     }
 
-    curveRef.current = board.create("functiongraph", [result.fn, -10, 10], {
+    curveRef.current = board.create("functiongraph", [result.fn, -1000, 1000], {
       strokeColor: "#0072B2",
       strokeWidth: 2,
     });
@@ -237,6 +202,7 @@ const App = () => {
           </div>
         ))}
       </div>
+      <div className="max-w-20">{equ}</div>
     </div>
   );
 };
