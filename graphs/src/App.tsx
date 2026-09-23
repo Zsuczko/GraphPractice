@@ -125,6 +125,7 @@ const App = () => {
   const curveRef = useRef<JXG.Curve | null>(null);
   const [expr, setExpr] = useState("3x + 1");
   const [error, setError] = useState<string | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<CoordType[]>([]);
 
   useEffect(() => {
     const board = JXG.JSXGraph.initBoard("jxgbox", {
@@ -133,11 +134,58 @@ const App = () => {
     });
     boardRef.current = board;
 
+    board.on("down", (event: PointerEvent) => {
+      const target = board.getAllObjectsUnderMouse(event)[0] as
+        | JXG.GeometryElement
+        | undefined;
+      if (target && target.elType === "point") {
+        const id = target.id;
+        board.removeObject(target);
+        setSelectedCoords((prev) => prev.filter((c) => c.id !== id));
+        return;
+      }
+
+      const [x, y] = board.getUsrCoordsOfMouse(event);
+      const rounded = {
+        x: Math.round(x * 100) / 100,
+        y: Math.round(y * 100) / 100,
+      };
+
+      const point = board.create("point", [rounded.x, rounded.y], {
+        size: 3,
+        name: "",
+      });
+
+      setSelectedCoords((prev) => [...prev, { id: point.id, ...rounded }]);
+    });
+
     return () => JXG.JSXGraph.freeBoard(board);
   }, []);
 
-  const plot = () => {
-    const result = compileExpression(expr);
+  useEffect(() => {
+    if (selectedCoords.length === 2) {
+      const x1 = selectedCoords[0].x;
+      const y1 = selectedCoords[0].y;
+      const x2 = selectedCoords[1].x;
+      const y2 = selectedCoords[1].y;
+
+      let m = (y1 - y2) / (x1 - x2);
+
+      let b = y1 - x1 * m;
+
+      console.log(`f(x)=${m}x+${b}`);
+      plot(`${m}x+${b}`);
+    } else {
+      const board = boardRef.current;
+      if (!board) return;
+      if (curveRef.current) {
+        board.removeObject(curveRef.current);
+      }
+    }
+  }, [selectedCoords]);
+
+  const plot = (expres: string) => {
+    const result = compileExpression(expres);
     if ("error" in result) {
       setError(result.error);
       return;
@@ -159,24 +207,36 @@ const App = () => {
   };
 
   return (
-    <div className="flex justify-center p-5 flex-col items-center">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          plot();
-        }}
-      >
-        <label htmlFor="fx">f(x) = </label>
-        <input id="fx" value={expr} onChange={(e) => setExpr(e.target.value)} />
-        <button type="submit">Plot</button>
-      </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      <div
-        id="jxgbox"
-        className="jxgbox"
-        style={{ width: "600px", height: "600px" }}
-      />
+    <div className="flex justify-center p-5 gap-10">
+      <div className="flex flex-col">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            plot(expr);
+          }}
+        >
+          <label htmlFor="fx">f(x) = </label>
+          <input
+            id="fx"
+            value={expr}
+            onChange={(e) => setExpr(e.target.value)}
+          />
+          <button type="submit">Plot</button>
+        </form>
+        {error && <p style={{ color: "red" }}>{error}</p>}
+        <div
+          id="jxgbox"
+          className="jxgbox"
+          style={{ width: "600px", height: "600px" }}
+        />
+      </div>
+      <div className="w-20">
+        {selectedCoords.map((item) => (
+          <div>
+            {item.x},{item.y}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
